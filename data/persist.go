@@ -2,9 +2,7 @@ package data
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 )
 
@@ -27,20 +25,25 @@ func checkFile(filename string) error {
 	return nil
 }
 
-func LoadFileContent(filePath string) *FileContent {
+func LoadFileContent(filePath string) (*FileContent, error) {
+	err := checkFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
 	file, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	fileContent := FileContent{}
 
 	err = json.Unmarshal(file, &fileContent)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	return &fileContent
+	return &fileContent, nil
 }
 
 func (f FileContent) SaveFileContent(filePath string) error {
@@ -48,7 +51,6 @@ func (f FileContent) SaveFileContent(filePath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(data))
 
 	err = checkFile(filePath)
 	if err != nil {
@@ -62,6 +64,17 @@ func (f FileContent) SaveFileContent(filePath string) error {
 	return nil
 }
 
-func (f *FileContent) AppendTrackingNumber(number TrackingNumber) {
+func AppendTrackingNumber(filePath string, number TrackingNumber) ([]TrackingNumber, error) {
+	f, err := LoadFileContent(filePath)
+	if err != nil {
+		return nil, err
+	}
+
 	f.TrackingNumbers = append(f.TrackingNumbers, number)
+	err = f.SaveFileContent(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return f.TrackingNumbers, nil
 }

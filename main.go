@@ -32,11 +32,25 @@ func initalModel() model {
 }
 
 func getSavedTrackingNumbers() tea.Msg {
-	fc := data.LoadFileContent(filePath)
+	fc, err := data.LoadFileContent(filePath)
+	if err != nil {
+		return errMsg{err}
+	}
 	return trackingNumbersMsg(fc.TrackingNumbers)
 }
 
 type trackingNumbersMsg []data.TrackingNumber
+
+func appendNewTrackingNumber(filePath string, trackNum string) tea.Cmd {
+	trackNumber := data.TrackingNumber(trackNum)
+	return func() tea.Msg {
+		trackingNumbers, err := data.AppendTrackingNumber(filePath, trackNumber)
+		if err != nil {
+			return errMsg{err}
+		}
+		return trackingNumbersMsg(trackingNumbers)
+	}
+}
 
 type errMsg struct{ err error }
 
@@ -69,13 +83,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.addingNumber {
 					m.addNumberInput.Focus()
 					textinput.Blink()
+				} else {
+					newNumber := m.addNumberInput.Value()
+					m.addNumberInput.SetValue("")
+					return m, appendNewTrackingNumber(filePath, newNumber)
 				}
 			}
 		}
 	}
 
 	var cmd tea.Cmd
-	m.addNumberInput, cmd = m.addNumberInput.Update(msg)
+	if m.addingNumber {
+		m.addNumberInput, cmd = m.addNumberInput.Update(msg)
+	}
 	return m, cmd
 }
 
@@ -91,7 +111,7 @@ func (m model) View() string {
 	} else {
 		prefix := " "
 		if m.cursor == 0 {
-			prefix = ">"
+			prefix = "+"
 		}
 		s += fmt.Sprintf(" %s %s\n", prefix, "Dodaj nowy numer przesyłki")
 	}
@@ -111,7 +131,7 @@ func (m model) View() string {
 func main() {
 	program := tea.NewProgram(initalModel())
 	if err := program.Start(); err != nil {
-		fmt.Printf("Uh oh, there was an error: %v\n", err)
+		fmt.Printf("O nie, góra lodowa: %v\n", err)
 		os.Exit(1)
 	}
 }
