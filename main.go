@@ -143,10 +143,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					} else {
 						return m, getTrackingInformationFromAPI(m.trackingNumbers[i])
 					}
-
-					// } else {
-					// 	i := m.cursor - 1
-					// 	return m, getTrackingInformationFromAPI(m.trackingNumbers[i])
 				}
 			}
 
@@ -186,7 +182,7 @@ func (m model) View() string {
 		s += fmt.Sprintf(" %s %s\n", prefix, trackNumber)
 
 		trackInfo, ok := m.trackingInfo[string(trackNumber)]
-		if ok {
+		if ok && m.showTrackInfo[string(trackNumber)] {
 			for _, status := range trackInfo.TrackingDetails {
 				t := monday.Format(status.DateTime, "Mon 15:04 02.01.2006", monday.LocalePlPL)
 				s += fmt.Sprintf(" %s %s %s %s \n", "  ", "  ", t, status.Status.Title)
