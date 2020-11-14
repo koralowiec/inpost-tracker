@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/enescakir/emoji"
 	"gitlab.com/koralowiec/inpost-track/data"
 )
 
@@ -71,29 +72,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Update that should happen always when that key/keys are pressed
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.trackingNumbers) {
-				m.cursor++
-			}
 		case "enter":
 			if m.cursor == 0 {
 				m.addingNumber = !m.addingNumber
-				if m.addingNumber {
+			}
+		}
+
+		// Update depends on whether user is adding a new package number
+		if m.addingNumber {
+			switch msg.String() {
+			case "enter":
+				if m.cursor == 0 {
 					m.addNumberInput.Focus()
 					textinput.Blink()
-				} else {
+				}
+
+			}
+		} else {
+			switch msg.String() {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < len(m.trackingNumbers) {
+					m.cursor++
+				}
+			case "enter":
+				if m.cursor == 0 {
 					newNumber := m.addNumberInput.Value()
 					m.addNumberInput.SetValue("")
 					return m, appendNewTrackingNumber(filePath, newNumber)
 				}
 			}
+
 		}
 	}
 
@@ -114,18 +130,18 @@ func (m model) View() string {
 	if m.addingNumber {
 		s += fmt.Sprintf(m.addNumberInput.View()) + "\n"
 	} else {
-		prefix := " "
+		prefix := "  "
 		if m.cursor == 0 {
-			prefix = "+"
+			prefix = emoji.Package.String()
 		}
 		s += fmt.Sprintf(" %s %s\n", prefix, "Dodaj nowy numer przesyłki")
 	}
 
 	for i, trackNumber := range m.trackingNumbers {
 		i += 1
-		prefix := " "
+		prefix := "  "
 		if m.cursor == i {
-			prefix = ">"
+			prefix = emoji.Package.String()
 		}
 		s += fmt.Sprintf(" %s %s\n", prefix, trackNumber)
 	}
