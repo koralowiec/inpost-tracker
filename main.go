@@ -9,7 +9,7 @@ import (
 	"gitlab.com/koralowiec/inpost-track/data"
 )
 
-const filePath = "/home/arek/.inpost-track/saved.json"
+var filePath string
 
 type model struct {
 	trackingNumbers []data.TrackingNumber
@@ -65,6 +65,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case trackingNumbersMsg:
 		m.trackingNumbers = msg
 		return m, nil
+
+	case errMsg:
+		m.err = msg
+		return m, nil
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -129,9 +134,15 @@ func (m model) View() string {
 }
 
 func main() {
+	var err error
+	filePath, err = data.GetContentFilePath()
+	if err != nil {
+		fmt.Printf("Nie udało się uzyskać ścieżki do pliku, błąd: %+v\n", err)
+	}
+
 	program := tea.NewProgram(initalModel())
 	if err := program.Start(); err != nil {
-		fmt.Printf("O nie, góra lodowa: %v\n", err)
+		fmt.Printf("O nie, góra lodowa: %v tszszszszs\n", err)
 		os.Exit(1)
 	}
 }

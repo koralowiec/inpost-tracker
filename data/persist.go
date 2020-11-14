@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 type TrackingNumber string
@@ -12,23 +13,33 @@ type FileContent struct {
 	TrackingNumbers []TrackingNumber `json:"tracking_numbers"`
 }
 
-// grabbed from: https://dev.to/christalib/append-data-to-json-in-go-5gbj
-func checkFile(filename string) error {
-	_, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		_, err := os.Create(filename)
-		if err != nil {
-			return err
-
-		}
+func GetContentFilePath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
 	}
-	return nil
+
+	return home + "/.inpost-track/saved.json", nil
+}
+
+func createEmptyJsonFile(filePath string) (*FileContent, error) {
+	dir := filepath.Dir(filePath)
+	os.MkdirAll(dir, 0777)
+	_, err := os.Create(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	fileContent := FileContent{}
+	fileContent.saveFileContent(filePath)
+
+	return &fileContent, nil
 }
 
 func LoadFileContent(filePath string) (*FileContent, error) {
-	err := checkFile(filePath)
-	if err != nil {
-		return nil, err
+	_, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		_, err = createEmptyJsonFile(filePath)
 	}
 
 	file, err := ioutil.ReadFile(filePath)
@@ -46,16 +57,12 @@ func LoadFileContent(filePath string) (*FileContent, error) {
 	return &fileContent, nil
 }
 
-func (f FileContent) SaveFileContent(filePath string) error {
+func (f FileContent) saveFileContent(filePath string) error {
 	data, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	err = checkFile(filePath)
-	if err != nil {
-		return err
-	}
 	err = ioutil.WriteFile(filePath, data, 0644)
 	if err != nil {
 		return err
@@ -65,13 +72,24 @@ func (f FileContent) SaveFileContent(filePath string) error {
 }
 
 func AppendTrackingNumber(filePath string, number TrackingNumber) ([]TrackingNumber, error) {
-	f, err := LoadFileContent(filePath)
-	if err != nil {
+	_, err := os.Stat(filePath)
+	var f *FileContent
+	if err == nil {
+		f, err = LoadFileContent(filePath)
+		if err != nil {
+			return nil, err
+		}
+	} else if os.IsNotExist(err) {
+		f, err = createEmptyJsonFile(filePath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
 		return nil, err
 	}
 
 	f.TrackingNumbers = append(f.TrackingNumbers, number)
-	err = f.SaveFileContent(filePath)
+	err = f.saveFileContent(filePath)
 	if err != nil {
 		return nil, err
 	}
