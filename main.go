@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/enescakir/emoji"
+	"github.com/goodsign/monday"
 	"gitlab.com/koralowiec/inpost-track/data"
 )
 
@@ -14,8 +15,9 @@ var filePath string
 
 type model struct {
 	trackingNumbers []data.TrackingNumber
+	trackingInfo    map[string]data.TrackingResponse
+	showTrackInfo   map[string]bool
 	cursor          int
-	selected        map[int]struct{}
 	addNumberInput  textinput.Model
 	addingNumber    bool
 	err             error
@@ -25,10 +27,13 @@ func initalModel() model {
 	inputModel := textinput.NewModel()
 	inputModel.Placeholder = "Nowy numer przesyłki"
 	inputModel.CharLimit = 156
-	inputModel.Width = 20
+	inputModel.Width = 24
+	inputModel.Prompt = " " + emoji.Plus.String() + " "
 
 	return model{
 		addNumberInput: inputModel,
+		trackingInfo:   make(map[string]data.TrackingResponse),
+		showTrackInfo:  make(map[string]bool),
 	}
 }
 
@@ -57,6 +62,18 @@ type errMsg struct{ err error }
 
 func (e errMsg) Error() string { return e.err.Error() }
 
+func getTrackingInformationFromAPI(trackingNumber data.TrackingNumber) tea.Cmd {
+	return func() tea.Msg {
+		trackRes, err := data.GetTrackingInfo(string(trackingNumber))
+		if err != nil {
+			return errMsg{err}
+		}
+		return trackingInfoMsg(*trackRes)
+	}
+}
+
+type trackingInfoMsg data.TrackingResponse
+
 func (m model) Init() tea.Cmd {
 	return getSavedTrackingNumbers
 }
@@ -69,6 +86,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case errMsg:
 		m.err = msg
+		return m, nil
+
+	case trackingInfoMsg:
+		number := msg.TrackingNumber
+		m.trackingInfo[number] = data.TrackingResponse(msg)
+		m.showTrackInfo[number] = true
 		return m, nil
 
 	case tea.KeyMsg:
@@ -90,7 +113,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.addNumberInput.Focus()
 					textinput.Blink()
 				}
-
+			case "esc":
+				m.addNumberInput.SetValue("")
+				m.addingNumber = false
 			}
 		} else {
 			switch msg.String() {
@@ -107,6 +132,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					newNumber := m.addNumberInput.Value()
 					m.addNumberInput.SetValue("")
 					return m, appendNewTrackingNumber(filePath, newNumber)
+				} else {
+					i := m.cursor - 1
+					trackNum := m.trackingNumbers[i]
+					trackNumString := string(trackNum)
+					if _, ok := m.trackingInfo[trackNumString]; ok {
+						if show, ok := m.showTrackInfo[trackNumString]; ok {
+							m.showTrackInfo[trackNumString] = !show
+						}
+					} else {
+						return m, getTrackingInformationFromAPI(m.trackingNumbers[i])
+					}
+
+					// } else {
+					// 	i := m.cursor - 1
+					// 	return m, getTrackingInformationFromAPI(m.trackingNumbers[i])
 				}
 			}
 
@@ -121,18 +161,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	if m.err != nil {
-		return fmt.Sprintf("\nWystąpił problem: %v\n\n", m.err)
-	}
-
 	var s string
+
+	if m.err != nil {
+		return fmt.Sprintf("\nWystąpił problem: %v \n\n", m.err)
+	}
 
 	if m.addingNumber {
 		s += fmt.Sprintf(m.addNumberInput.View()) + "\n"
 	} else {
 		prefix := "  "
 		if m.cursor == 0 {
-			prefix = emoji.Package.String()
+			prefix = emoji.NewButton.String()
 		}
 		s += fmt.Sprintf(" %s %s\n", prefix, "Dodaj nowy numer przesyłki")
 	}
@@ -144,6 +184,14 @@ func (m model) View() string {
 			prefix = emoji.Package.String()
 		}
 		s += fmt.Sprintf(" %s %s\n", prefix, trackNumber)
+
+		trackInfo, ok := m.trackingInfo[string(trackNumber)]
+		if ok {
+			for _, status := range trackInfo.TrackingDetails {
+				t := monday.Format(status.DateTime, "Mon 15:04 02.01.2006", monday.LocalePlPL)
+				s += fmt.Sprintf(" %s %s %s %s \n", "  ", "  ", t, status.Status.Title)
+			}
+		}
 	}
 
 	return "\n" + s + "\n\n"

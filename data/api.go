@@ -2,6 +2,7 @@ package data
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -97,6 +98,14 @@ func fetchStatuses() ([]Status, error) {
 	return statuses, nil
 }
 
+type PackageNotFoundError struct {
+	trackingNumber string
+}
+
+func (e *PackageNotFoundError) Error() string {
+	return fmt.Sprintf("Inpost API error: package with number: %s not found", e.trackingNumber)
+}
+
 func GetTrackingInfo(trackingNumber string) (*TrackingResponse, error) {
 	if statuses != nil {
 		if _, err := GetStatuses(); err != nil {
@@ -110,6 +119,11 @@ func GetTrackingInfo(trackingNumber string) (*TrackingResponse, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode == 404 {
+		err := &PackageNotFoundError{trackingNumber}
+		return nil, err
+	}
 
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
