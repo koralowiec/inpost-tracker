@@ -96,3 +96,33 @@ func AppendTrackingNumber(filePath string, number TrackingNumber) ([]TrackingNum
 
 	return f.TrackingNumbers, nil
 }
+
+func remove(slice []TrackingNumber, s int) []TrackingNumber {
+	return append(slice[:s], slice[s+1:]...)
+}
+
+func RemoveTrackingNumber(filePath string, index int) ([]TrackingNumber, error) {
+	_, err := os.Stat(filePath)
+	var f *FileContent
+	if err == nil {
+		f, err = LoadFileContent(filePath)
+		if err != nil {
+			return nil, err
+		}
+	} else if os.IsNotExist(err) {
+		f, err = createEmptyJsonFile(filePath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, err
+	}
+
+	f.TrackingNumbers = remove(f.TrackingNumbers, index)
+	err = f.saveFileContent(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return f.TrackingNumbers, nil
+}

@@ -20,6 +20,7 @@ type model struct {
 	cursor          int
 	addNumberInput  textinput.Model
 	addingNumber    bool
+	deletingNumber  bool
 	err             error
 }
 
@@ -51,6 +52,16 @@ func appendNewTrackingNumber(filePath string, trackNum string) tea.Cmd {
 	trackNumber := data.TrackingNumber(trackNum)
 	return func() tea.Msg {
 		trackingNumbers, err := data.AppendTrackingNumber(filePath, trackNumber)
+		if err != nil {
+			return errMsg{err}
+		}
+		return trackingNumbersMsg(trackingNumbers)
+	}
+}
+
+func removeTrackingNumber(filePath string, index int) tea.Cmd {
+	return func() tea.Msg {
+		trackingNumbers, err := data.RemoveTrackingNumber(filePath, index)
 		if err != nil {
 			return errMsg{err}
 		}
@@ -127,6 +138,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor < len(m.trackingNumbers) {
 					m.cursor++
 				}
+			case "d":
+				m.deletingNumber = !m.deletingNumber
 			case "enter":
 				if m.cursor == 0 {
 					newNumber := m.addNumberInput.Value()
@@ -134,14 +147,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, appendNewTrackingNumber(filePath, newNumber)
 				} else {
 					i := m.cursor - 1
-					trackNum := m.trackingNumbers[i]
-					trackNumString := string(trackNum)
-					if _, ok := m.trackingInfo[trackNumString]; ok {
-						if show, ok := m.showTrackInfo[trackNumString]; ok {
-							m.showTrackInfo[trackNumString] = !show
-						}
+
+					if m.deletingNumber {
+						m.cursor = i
+						m.deletingNumber = false
+						return m, removeTrackingNumber(filePath, i)
 					} else {
-						return m, getTrackingInformationFromAPI(m.trackingNumbers[i])
+						trackNum := m.trackingNumbers[i]
+						trackNumString := string(trackNum)
+						if _, ok := m.trackingInfo[trackNumString]; ok {
+							if show, ok := m.showTrackInfo[trackNumString]; ok {
+								m.showTrackInfo[trackNumString] = !show
+							}
+						} else {
+							return m, getTrackingInformationFromAPI(m.trackingNumbers[i])
+						}
 					}
 				}
 			}
@@ -177,7 +197,11 @@ func (m model) View() string {
 		i += 1
 		prefix := "  "
 		if m.cursor == i {
-			prefix = emoji.Package.String()
+			if m.deletingNumber {
+				prefix = emoji.Wastebasket.String() + " "
+			} else {
+				prefix = emoji.Package.String()
+			}
 		}
 		s += fmt.Sprintf(" %s %s\n", prefix, trackNumber)
 
