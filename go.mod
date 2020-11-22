@@ -1,4 +1,4 @@
-module gitlab.com/koralowiec/inpost-track
+module gitlab.com/koralowiec/inpost-tracker
 
 go 1.15
 

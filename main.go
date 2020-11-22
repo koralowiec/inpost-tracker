@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/enescakir/emoji"
 	"github.com/goodsign/monday"
-	"gitlab.com/koralowiec/inpost-track/data"
+	"gitlab.com/koralowiec/inpost-tracker/data"
 )
 
 var filePath string
