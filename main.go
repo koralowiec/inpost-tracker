@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -218,6 +219,19 @@ func (m model) View() string {
 }
 
 func main() {
+	help := flag.Bool("h", false, "Show help")
+	flag.Parse()
+
+	if *help {
+		fmt.Println("Navigation keys:")
+		fmt.Println("  ctrl+c q - quit")
+		fmt.Println("  🠕 k      - up")
+		fmt.Println("  🠗 j      - down")
+		fmt.Println("  enter    - select")
+		fmt.Println("  d        - switch on/off deleting")
+		os.Exit(0)
+	}
+
 	var err error
 	filePath, err = data.GetContentFilePath()
 	if err != nil {
